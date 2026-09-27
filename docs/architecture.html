@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>JSM Database Map</title>
+<style>
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --surface-2: #eaeff4;
+  --ink: #17202b;
+  --muted: #5a6576;
+  --line: #cdd5de;
+  --accent: #0b6a88;
+  --accent-soft: #dcedf4;
+  --fk: #a3521a;
+  --fk-soft: #f6e6d8;
+  --dim: #939dab;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141a;
+    --surface: #161d26;
+    --surface-2: #1c2531;
+    --ink: #e4e9ef;
+    --muted: #9ca7b5;
+    --line: #2d3744;
+    --accent: #58b9d9;
+    --accent-soft: #15313c;
+    --fk: #e4a26a;
+    --fk-soft: #3a2a1d;
+    --dim: #5f6a79;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141a;
+  --surface: #161d26;
+  --surface-2: #1c2531;
+  --ink: #e4e9ef;
+  --muted: #9ca7b5;
+  --line: #2d3744;
+  --accent: #58b9d9;
+  --accent-soft: #15313c;
+  --fk: #e4a26a;
+  --fk-soft: #3a2a1d;
+  --dim: #5f6a79;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 var(--sans);
+}
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 40px 72px;
+  display: grid;
+  gap: 56px;
+}
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+code { font-family: var(--mono); font-size: 0.92em; }
+h1, h2, h3 { text-wrap: balance; }
+
+.top { display: grid; gap: 14px; }
+.eyebrow {
+  margin: 0;
+  font: 600 12px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+h1 { margin: 0; font-size: 34px; line-height: 1.15; letter-spacing: -0.015em; }
+.lede { margin: 0; max-width: 62ch; font-size: 17px; color: var(--muted); }
+.facts {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 14px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.facts strong { color: var(--ink); font-size: 16px; }
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.toc a { text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+
+section { display: grid; gap: 14px; scroll-margin-top: 16px; }
+h2 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
+.intro { margin: 0; max-width: 68ch; color: var(--muted); }
+
+figure {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+.diagram { overflow-x: auto; }
+figcaption { max-width: 78ch; font-size: 14px; color: var(--muted); }
+
+svg.dia {
+  display: block;
+  width: 100%;
+  min-width: 780px;
+  height: auto;
+  font-family: var(--sans);
+}
+.dia .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.3; }
+.dia .box-strong { fill: var(--surface); stroke: var(--accent); stroke-width: 1.8; }
+.dia .band { fill: var(--accent-soft); }
+.dia .sep { stroke: var(--line); stroke-width: 1; }
+.dia .label { font-size: 12.5px; fill: var(--ink); }
+.dia .note { font-size: 12px; fill: var(--muted); }
+.dia .code { font-family: var(--mono); font-size: 12px; fill: var(--ink); }
+.dia .code-strong { font-family: var(--mono); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.dia .dash { fill: none; stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.dia .dot { fill: none; stroke: var(--muted); stroke-width: 1.8; stroke-dasharray: 1 5; stroke-linecap: round; }
+.dia .fkline { fill: none; stroke: var(--fk); stroke-width: 2; }
+.dia .fk-text { font-family: var(--mono); font-size: 11px; font-weight: 700; fill: var(--fk); }
+.dia .pk-badge { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+.dia .pk-text { font-family: var(--mono); font-size: 10.5px; font-weight: 700; fill: var(--accent); }
+.dia .dimbox { fill: none; stroke: var(--dim); stroke-width: 1.3; stroke-dasharray: 4 4; }
+.dia .dimtext { font-family: var(--mono); font-size: 12px; fill: var(--dim); }
+.dia .dimnote { font-size: 12px; fill: var(--dim); }
+.dia .head-fk { fill: var(--fk); }
+
+.cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 470px), 1fr));
+  align-items: start;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: grid;
+  gap: 10px;
+}
+.card.wide { grid-column: 1 / -1; }
+.card.unused { background: transparent; border-style: dashed; }
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.card h3 { margin: 0; font: 600 16px var(--mono); overflow-wrap: anywhere; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 7px 12px 7px 0;
+  border-top: 1px solid var(--line);
+}
+thead th {
+  border-top: 0;
+  padding-top: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+tr.group th {
+  padding-top: 16px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+td.col { white-space: nowrap; }
+td.col code { font-size: 13px; }
+td.type { font: 12.5px var(--mono); color: var(--muted); white-space: nowrap; }
+.tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font: 700 10.5px var(--mono);
+  vertical-align: 1px;
+}
+.tag.pk { background: var(--accent-soft); color: var(--accent); }
+.tag.fk { background: var(--fk-soft); color: var(--fk); }
+.tag.req, .tag.calc { background: var(--surface-2); color: var(--muted); }
+.unused h3, .unused td { color: var(--muted); }
+
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 16px; }
+
+@media (max-width: 560px) {
+  h1 { font-size: 28px; }
+  .page { gap: 44px; padding-block: 28px 56px; }
+  figure { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="top">
+  <p class="eyebrow">jira-data · PostgreSQL 17 · database jsm</p>
+  <h1>JSM Tickets Database</h1>
+  <p class="lede">The tables in the JSM tickets database, how they link, and what each column holds.</p>
+  <ul class="facts">
+    <li><strong>5,344</strong> tickets</li>
+    <li><strong>6</strong> tables</li>
+    <li>read-only user <code>analyst</code></li>
+  </ul>
+  <nav class="toc" aria-label="Sections">
+    <a href="#tables">Tables and links</a>
+    <a href="#columns">All columns</a>
+    <a href="#improve">How to improve</a>
+  </nav>
+</header>
+
+<section id="tables" aria-labelledby="tables-title">
+  <h2 id="tables-title">Tables and links</h2>
+  <p class="intro"><code>jira_requests</code> holds one row per ticket; its AI review columns follow the REVIEW SCHEMA in the scored workbook's "Request Review Design" sheet. The five <code>ref_</code> tables are TABLE A to E from the same sheet and explain the values in those columns.</p>
+  <figure>
+    <div class="diagram">
+      <svg class="dia" viewBox="0 0 1040 460" role="img" aria-label="jira_requests is the central table. ref_categories, ref_score_anchors, ref_agent_archetypes, ref_evidence_basis and ref_knowledge_deflection_anchors (tables A to E) list the values used in its AI columns.">
+        <path class="dash" d="M224 62 H340 V256 H380"/>
+        <path class="dash" d="M224 162 H320 V296 H380"/>
+        <path class="dash" d="M224 262 H300 V356 H380"/>
+        <path class="dash" d="M224 362 H280 V376 H380"/>
+        <path class="dash" d="M720 316 H660"/>
+
+        <rect class="box" x="24" y="24" width="200" height="76" rx="8"/>
+        <text class="code-strong" x="40" y="50">ref_categories</text>
+        <text class="code" x="40" y="72">category</text>
+        <text class="note" x="40" y="90">9 rows</text>
+
+        <rect class="box" x="24" y="124" width="200" height="76" rx="8"/>
+        <text class="code-strong" x="40" y="150">ref_score_anchors</text>
+        <text class="code" x="40" y="172">score 1–5</text>
+        <text class="note" x="40" y="190">5 rows</text>
+
+        <rect class="box" x="24" y="224" width="200" height="76" rx="8"/>
+        <text class="code-strong" x="40" y="250">ref_agent_archetypes</text>
+        <text class="code" x="40" y="272">archetype</text>
+        <text class="note" x="40" y="290">5 rows</text>
+
+        <rect class="box" x="24" y="324" width="200" height="76" rx="8"/>
+        <text class="code-strong" x="40" y="350">ref_evidence_basis</text>
+        <text class="code" x="40" y="372">value</text>
+        <text class="note" x="40" y="390">4 rows</text>
+
+        <rect class="box-strong" x="380" y="24" width="280" height="386" rx="8"/>
+        <rect class="band" x="381" y="25" width="278" height="32" rx="7"/>
+        <rect class="band" x="381" y="45" width="278" height="12"/>
+        <line class="sep" x1="381" y1="57" x2="659" y2="57"/>
+        <text class="code-strong" x="396" y="46">jira_requests</text>
+        <text class="note" x="644" y="46" text-anchor="end">5,344 rows</text>
+        <text class="code" x="396" y="80">key</text>
+        <rect class="pk-badge" x="612" y="68" width="32" height="16" rx="4"/>
+        <text class="pk-text" x="628" y="80" text-anchor="middle">PK</text>
+        <text class="code" x="396" y="100">issue_type · status</text>
+        <text class="code" x="396" y="120">summary · description</text>
+        <text class="code" x="396" y="140">request_type · request_topic</text>
+        <text class="code" x="396" y="160">assignee · reporter</text>
+        <text class="code" x="396" y="180">created · resolved</text>
+        <text class="code" x="396" y="200">duration_days</text>
+        <text class="note" x="506" y="200">calculated</text>
+        <text class="code" x="396" y="220">priority · severity</text>
+        <text class="code" x="396" y="240">is_excluded · exclude_reason</text>
+        <text class="code" x="396" y="260">primary_category</text>
+        <text class="code" x="396" y="280">secondary_category</text>
+        <text class="code" x="396" y="300">clarity · complexity</text>
+        <text class="code" x="396" y="320">knowledge_deflection</text>
+        <text class="code" x="396" y="340">automation_logic</text>
+        <text class="code" x="396" y="360">agent_archetype</text>
+        <text class="code" x="396" y="380">evidence_basis</text>
+        <text class="note" x="396" y="400">+ 12 more columns</text>
+
+        <rect class="box" x="720" y="278" width="296" height="76" rx="8"/>
+        <text class="code-strong" x="736" y="304">ref_knowledge_deflection_anchors</text>
+        <text class="code" x="736" y="326">score 1–5</text>
+        <text class="note" x="736" y="344">5 rows</text>
+
+        <line class="dash" x1="24" y1="440" x2="64" y2="440"/>
+        <text class="label" x="74" y="444">same values, not enforced</text>
+      </svg>
+    </div>
+    <figcaption>The database enforces no links between these tables: category, score, archetype and evidence values match the <code>ref_</code> tables by value. The REVIEW SCHEMA's notes appear as column comments on <code>jira_requests</code> in pgAdmin.</figcaption>
+  </figure>
+</section>
+
+<section id="columns" aria-labelledby="columns-title">
+  <h2 id="columns-title">All columns</h2>
+  <p class="intro">Every table with its columns. <span class="tag pk">PK</span> is the primary key, <span class="tag fk">FK</span> a foreign key, and <span class="tag req">required</span> means the column is never empty.</p>
+
+  <div class="cards">
+
+    <article class="card wide">
+      <div class="card-head"><h3>jira_requests</h3><span class="count">5,344 rows</span></div>
+      <p>One row per Jira ticket from the scored workbook, including the AI review. The AI review columns follow the REVIEW SCHEMA, and its notes are their column comments.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr class="group"><th colspan="3" scope="colgroup">From the Jira export</th></tr>
+            <tr><td class="col"><code>issue_type</code><span class="tag req">required</span></td><td class="type">text</td><td>Bug, General request, Emailed request or Task.</td></tr>
+            <tr><td class="col"><code>key</code><span class="tag pk">PK</span></td><td class="type">text</td><td>The Jira key, for example REVAPP-2.</td></tr>
+            <tr><td class="col"><code>summary</code></td><td class="type">text</td><td>The ticket's title.</td></tr>
+            <tr><td class="col"><code>description</code></td><td class="type">text</td><td>The ticket's text.</td></tr>
+            <tr><td class="col"><code>request_type</code></td><td class="type">text</td><td>The Jira request type, for example Revenue Applications Support.</td></tr>
+            <tr><td class="col"><code>request_topic</code></td><td class="type">text</td><td>The answer to "What can we help you with?".</td></tr>
+            <tr><td class="col"><code>assignee</code></td><td class="type">text</td><td>Who works on the ticket. Empty when unassigned.</td></tr>
+            <tr><td class="col"><code>status</code><span class="tag req">required</span></td><td class="type">text</td><td>Done, Open, In Progress, Cancel and so on.</td></tr>
+            <tr><td class="col"><code>created</code><span class="tag req">required</span></td><td class="type">timestamptz</td><td>When the ticket was created, in UTC.</td></tr>
+            <tr><td class="col"><code>reporter</code></td><td class="type">text</td><td>Who raised the ticket.</td></tr>
+            <tr><td class="col"><code>synced_to_jira</code><span class="tag req">required</span></td><td class="type">boolean</td><td>True when "Sync to Jira" says Synced.</td></tr>
+            <tr><td class="col"><code>resolved</code></td><td class="type">timestamptz</td><td>When the ticket was resolved, in UTC. Empty while it is open.</td></tr>
+            <tr><td class="col"><code>duration_days</code><span class="tag calc">calculated</span></td><td class="type">numeric(8,2)</td><td>Days from created to resolved. The database works this out.</td></tr>
+            <tr><td class="col"><code>linked_issues</code></td><td class="type">text</td><td>The linked keys as written in Jira, separated by semicolons. Most point to REVAPPS tickets, which are not in this data.</td></tr>
+            <tr><td class="col"><code>comment_summary</code></td><td class="type">text</td><td>Empty: the export had no comment summaries.</td></tr>
+            <tr><td class="col"><code>priority</code></td><td class="type">text</td><td>P0 to P4, or Unprioritized.</td></tr>
+            <tr><td class="col"><code>severity</code></td><td class="type">text</td><td>S1-Critical to S4-Low. Mostly empty.</td></tr>
+            <tr class="group"><th colspan="3" scope="colgroup">AI review</th></tr>
+            <tr><td class="col"><code>is_excluded</code><span class="tag req">required</span></td><td class="type">boolean</td><td>Test entries, spam and duplicates. Excluded tickets have no scores.</td></tr>
+            <tr><td class="col"><code>exclude_reason</code></td><td class="type">text</td><td>Why the ticket was excluded.</td></tr>
+            <tr><td class="col"><code>primary_category</code></td><td class="type">text</td><td>The main category. The names are in <code>ref_categories</code>.</td></tr>
+            <tr><td class="col"><code>secondary_category</code></td><td class="type">text</td><td>A second category, only when a ticket genuinely spans two.</td></tr>
+            <tr><td class="col"><code>sub_type</code></td><td class="type">text</td><td>A finer type within the category, such as grant, change or revoke.</td></tr>
+            <tr><td class="col"><code>is_batch</code></td><td class="type">boolean</td><td>Whether it affects many records. A merge counts as one.</td></tr>
+            <tr><td class="col"><code>is_project_work</code></td><td class="type">boolean</td><td>Whether it came from UAT, functional or data testing.</td></tr>
+            <tr><td class="col"><code>clarity</code></td><td class="type">smallint 1–5</td><td>How well the request was described. The meaning of each score is in <code>ref_score_anchors</code>.</td></tr>
+            <tr><td class="col"><code>complexity</code></td><td class="type">smallint 1–5</td><td>Effort to resolve, relative to the other tickets.</td></tr>
+            <tr><td class="col"><code>knowledge_deflection</code></td><td class="type">smallint 1–5</td><td>Whether the requester wanted an answer they could have found themselves. The meaning of each score is in <code>ref_knowledge_deflection_anchors</code>.</td></tr>
+            <tr><td class="col"><code>automation_logic</code></td><td class="type">smallint 1–5</td><td>How rule-based the work is, ignoring permissions.</td></tr>
+            <tr><td class="col"><code>action_class</code></td><td class="type">text</td><td>What the resolver had to do: read-only, standard write, privileged write or config change.</td></tr>
+            <tr><td class="col"><code>approval_required</code></td><td class="type">text</td><td>The approval needed to automate it: none, manager or segregation-of-duties.</td></tr>
+            <tr><td class="col"><code>agent_archetype</code></td><td class="type">text</td><td>The best-fit AI agent, or none. The names are in <code>ref_agent_archetypes</code>.</td></tr>
+            <tr><td class="col"><code>confidence</code></td><td class="type">text</td><td>Confidence in the review: low, medium or high.</td></tr>
+            <tr><td class="col"><code>rationale</code></td><td class="type">text</td><td>A short explanation of the review.</td></tr>
+            <tr><td class="col"><code>data_domain</code></td><td class="type">text</td><td>What the request touches, such as permissions or a customer record.</td></tr>
+            <tr><td class="col"><code>reversibility</code></td><td class="type">text</td><td>Whether the action could be undone: easy, hard or irreversible.</td></tr>
+            <tr><td class="col"><code>evidence_basis</code></td><td class="type">text</td><td>What the scores were based on. The values are in <code>ref_evidence_basis</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>ref_categories</h3><span class="count">9 rows</span></div>
+      <p>Table A: the categories used in <code>primary_category</code> and <code>secondary_category</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>category_no</code><span class="tag pk">PK</span></td><td class="type">smallint</td><td>1 to 9.</td></tr>
+            <tr><td class="col"><code>category</code><span class="tag req">required</span></td><td class="type">text</td><td>The name used in <code>jira_requests</code>. Unique.</td></tr>
+            <tr><td class="col"><code>detail</code></td><td class="type">text</td><td>What belongs in the category.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>ref_score_anchors</h3><span class="count">5 rows</span></div>
+      <p>Table B: what each score from 1 to 5 means.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>score</code><span class="tag pk">PK</span></td><td class="type">smallint 1–5</td><td>The score.</td></tr>
+            <tr><td class="col"><code>general_logic</code></td><td class="type">text</td><td>What the score means for any score column.</td></tr>
+            <tr><td class="col"><code>clarity_anchor</code></td><td class="type">text</td><td>An example for <code>clarity</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>ref_agent_archetypes</h3><span class="count">5 rows</span></div>
+      <p>Table C: the AI agent types used in <code>agent_archetype</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>archetype_no</code><span class="tag pk">PK</span></td><td class="type">smallint</td><td>1 to 5.</td></tr>
+            <tr><td class="col"><code>archetype</code><span class="tag req">required</span></td><td class="type">text</td><td>The name used in <code>jira_requests</code>. Unique.</td></tr>
+            <tr><td class="col"><code>handles</code></td><td class="type">text</td><td>The tickets it takes.</td></tr>
+            <tr><td class="col"><code>autonomy</code></td><td class="type">text</td><td>How much it may do on its own.</td></tr>
+            <tr><td class="col"><code>blocked_by</code></td><td class="type">text</td><td>What has to be in place first.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>ref_evidence_basis</h3><span class="count">4 rows</span></div>
+      <p>Table D: the values used in <code>evidence_basis</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>value</code><span class="tag pk">PK</span></td><td class="type">text</td><td>Form, structured prose, free text or summary only.</td></tr>
+            <tr><td class="col"><code>definition</code></td><td class="type">text</td><td>What the value means.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>ref_knowledge_deflection_anchors</h3><span class="count">5 rows</span></div>
+      <p>Table E: what each <code>knowledge_deflection</code> score from 1 to 5 means.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>score</code><span class="tag pk">PK</span></td><td class="type">smallint 1–5</td><td>The score.</td></tr>
+            <tr><td class="col"><code>knowledge_deflection_anchor</code></td><td class="type">text</td><td>An example for <code>knowledge_deflection</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<section id="improve" aria-labelledby="improve-title">
+  <h2 id="improve-title">How the tables could be improved</h2>
+  <ul class="intro">
+    <li>Check that every category, agent and evidence value in a ticket exists in TABLE A, C or D.</li>
+    <li>Only accept the values the review schema allows, such as low, medium or high for confidence.</li>
+    <li>Add a list of allowed sub-types to the sheet, so those can be checked too.</li>
+  </ul>
+</section>
+
+<footer>Tables, columns and row counts read from the running database on 26 September 2026.</footer>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jsm-loader"
+version = "1.0.0"
+description = "Loads the JSM Jira files into PostgreSQL."
+requires-python = ">=3.9"
+dependencies = [
+    "openpyxl>=3.1,<4",
+    "psycopg[binary]>=3.2,<4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+jsm_loader = ["sql/*.sql"]
