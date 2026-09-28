@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 
 _EXCLUSION = re.compile(r"^(?P<flag>[YN])\b\s*(?:[—–-]\s*(?P<reason>.+))?$", re.DOTALL)
 _NO_FIELD = "[no field found]"
@@ -44,6 +46,20 @@ def whole_number(value: object) -> int | None:
     if not number.is_integer():
         raise ValueError(f"{value!r} is not a whole number")
     return int(number)
+
+
+def number(value: object) -> Decimal | None:
+    if _is_blank(value):
+        return None
+    if isinstance(value, bool) or (isinstance(value, float) and not math.isfinite(value)):
+        raise ValueError(f"{value!r} is not a number")
+    try:
+        parsed = Decimal(str(value).strip())
+    except InvalidOperation:
+        raise ValueError(f"{value!r} is not a number") from None
+    if not parsed.is_finite():
+        raise ValueError(f"{value!r} is not a number")
+    return parsed
 
 
 def score(value: object) -> int | None:

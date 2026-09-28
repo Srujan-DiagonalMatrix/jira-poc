@@ -146,6 +146,8 @@ svg.dia {
 .dia .dimtext { font-family: var(--mono); font-size: 12px; fill: var(--dim); }
 .dia .dimnote { font-size: 12px; fill: var(--dim); }
 .dia .head-fk { fill: var(--fk); }
+.dia .flow { fill: none; stroke: var(--accent); stroke-width: 1.8; }
+.dia .head-flow { fill: var(--accent); }
 
 .cards {
   display: grid;
@@ -230,32 +232,98 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 <main class="page">
 
 <header class="top">
-  <p class="eyebrow">jira-data · PostgreSQL 17 · database jsm</p>
+  <p class="eyebrow">jira-data · PostgreSQL 17 · database jsm · schema jira_ai</p>
   <h1>JSM Tickets Database</h1>
-  <p class="lede">The tables in the JSM tickets database, how they link, and what each column holds.</p>
+  <p class="lede">How the Excel data flows through the <code>jira_ai</code> schema, how the core tables link, and what each column holds.</p>
   <ul class="facts">
     <li><strong>5,344</strong> tickets</li>
-    <li><strong>6</strong> tables</li>
-    <li>read-only user <code>analyst</code></li>
+    <li><strong>20</strong> tables and <strong>2</strong> views in <strong>6</strong> layers</li>
+    <li><strong>0</strong> quarantined rows</li>
+    <li>read-only user <code>jira_reader</code></li>
   </ul>
   <nav class="toc" aria-label="Sections">
-    <a href="#tables">Tables and links</a>
-    <a href="#columns">All columns</a>
+    <a href="#layers">Layers</a>
+    <a href="#tables">Core tables and links</a>
+    <a href="#columns">Core columns</a>
+    <a href="#other">Other layers</a>
     <a href="#improve">How to improve</a>
   </nav>
 </header>
 
-<section id="tables" aria-labelledby="tables-title">
-  <h2 id="tables-title">Tables and links</h2>
-  <p class="intro"><code>jira_requests</code> holds one row per ticket; its AI review columns follow the REVIEW SCHEMA in the scored workbook's "Request Review Design" sheet. The five <code>ref_</code> tables are TABLE A to E from the same sheet and explain the values in those columns.</p>
+<section id="layers" aria-labelledby="layers-title">
+  <h2 id="layers-title">Layers</h2>
+  <p class="intro">Every load gets a new <code>batch_id</code> and passes through six layers in this order, as the client's blueprint specifies.</p>
   <figure>
     <div class="diagram">
-      <svg class="dia" viewBox="0 0 1040 460" role="img" aria-label="jira_requests is the central table. ref_categories, ref_score_anchors, ref_agent_archetypes, ref_evidence_basis and ref_knowledge_deflection_anchors (tables A to E) list the values used in its AI columns.">
-        <path class="dash" d="M224 62 H340 V256 H380"/>
-        <path class="dash" d="M224 162 H320 V296 H380"/>
-        <path class="dash" d="M224 262 H300 V356 H380"/>
-        <path class="dash" d="M224 362 H280 V376 H380"/>
-        <path class="dash" d="M720 316 H660"/>
+      <svg class="dia" viewBox="0 0 1040 300" role="img" aria-label="The Excel workbook is loaded into the raw layer, then staging, then the core tables, then the dimensions, then the fact table, and finally the two reporting views.">
+        <defs>
+          <marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path class="head-flow" d="M0,0 L10,5 L0,10 Z"/></marker>
+        </defs>
+
+        <line class="flow" x1="240" y1="74" x2="278" y2="74" marker-end="url(#flow-arrow)"/>
+        <line class="flow" x1="500" y1="74" x2="538" y2="74" marker-end="url(#flow-arrow)"/>
+        <line class="flow" x1="760" y1="74" x2="798" y2="74" marker-end="url(#flow-arrow)"/>
+        <line class="flow" x1="910" y1="124" x2="910" y2="174" marker-end="url(#flow-arrow)"/>
+        <line class="flow" x1="800" y1="226" x2="762" y2="226" marker-end="url(#flow-arrow)"/>
+        <line class="flow" x1="540" y1="226" x2="482" y2="226" marker-end="url(#flow-arrow)"/>
+
+        <rect class="dimbox" x="20" y="24" width="220" height="100" rx="8"/>
+        <text class="code-strong" x="36" y="50">Excel workbook</text>
+        <text class="note" x="36" y="72">"Jira Requests" sheet</text>
+        <text class="note" x="36" y="90">"Request Review Design" sheet</text>
+
+        <rect class="box" x="280" y="24" width="220" height="100" rx="8"/>
+        <text class="code-strong" x="296" y="50">1 · Raw</text>
+        <text class="code" x="296" y="72">load_jira_requests_raw</text>
+        <text class="code" x="296" y="90">load_reference_rows_raw</text>
+        <text class="note" x="296" y="110">every row as it is, per batch</text>
+
+        <rect class="box" x="540" y="24" width="220" height="100" rx="8"/>
+        <text class="code-strong" x="556" y="50">2 · Staging</text>
+        <text class="code" x="556" y="72">stg_jira_requests</text>
+        <text class="code" x="556" y="90">stg_ref_* (5 tables)</text>
+        <text class="note" x="556" y="110">VALID or QUARANTINED + reason</text>
+
+        <rect class="box-strong" x="800" y="24" width="220" height="100" rx="8"/>
+        <text class="code-strong" x="816" y="50">3 · Core</text>
+        <text class="code" x="816" y="72">jira_requests</text>
+        <text class="code" x="816" y="90">ref_* (TABLE A–E)</text>
+        <text class="note" x="816" y="110">8 links and 13 checks enforced</text>
+
+        <rect class="box" x="800" y="176" width="220" height="100" rx="8"/>
+        <text class="code-strong" x="816" y="202">4 · Dimensions</text>
+        <text class="code" x="816" y="224">dim_* (5 tables)</text>
+        <text class="note" x="816" y="246">reference values with</text>
+        <text class="note" x="816" y="264">numeric keys</text>
+
+        <rect class="box" x="540" y="176" width="220" height="100" rx="8"/>
+        <text class="code-strong" x="556" y="202">5 · Fact</text>
+        <text class="code" x="556" y="224">fact_jira_request</text>
+        <text class="note" x="556" y="246">one row per ticket,</text>
+        <text class="note" x="556" y="264">linked to the dimensions</text>
+
+        <rect class="box" x="20" y="176" width="460" height="100" rx="8"/>
+        <text class="code-strong" x="36" y="202">6 · Views</text>
+        <text class="code" x="36" y="224">vw_ai_opportunity</text>
+        <text class="code" x="36" y="242">vw_existing_data_validation_report</text>
+        <text class="note" x="36" y="264">where AI can help · the validation result of each load</text>
+      </svg>
+    </div>
+    <figcaption>Rows that fail a check stay in staging as <code>QUARANTINED</code> with the reason and are not loaded into the core. Earlier batches stay in the raw and staging layers; the core, dimensions and fact are updated in place, so nothing is duplicated.</figcaption>
+  </figure>
+</section>
+
+<section id="tables" aria-labelledby="tables-title">
+  <h2 id="tables-title">Core tables and links</h2>
+  <p class="intro"><code>jira_requests</code> holds one row per valid ticket; its AI review columns follow the REVIEW SCHEMA in the scored workbook's "Request Review Design" sheet. The five <code>ref_</code> tables are TABLE A to E from the same sheet and govern the values in those columns.</p>
+  <figure>
+    <div class="diagram">
+      <svg class="dia" viewBox="0 0 1040 460" role="img" aria-label="jira_requests is the central table. Foreign keys link its review columns to ref_categories, ref_score_anchors, ref_agent_archetypes, ref_evidence_basis and ref_knowledge_deflection_anchors (tables A to E).">
+        <path class="fkline" d="M224 62 H340 V256 H380"/>
+        <path class="fkline" d="M224 162 H320 V296 H380"/>
+        <path class="fkline" d="M224 262 H300 V356 H380"/>
+        <path class="fkline" d="M224 362 H280 V376 H380"/>
+        <path class="fkline" d="M720 316 H660"/>
 
         <rect class="box" x="24" y="24" width="200" height="76" rx="8"/>
         <text class="code-strong" x="40" y="50">ref_categories</text>
@@ -292,7 +360,6 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
         <text class="code" x="396" y="160">assignee · reporter</text>
         <text class="code" x="396" y="180">created · resolved</text>
         <text class="code" x="396" y="200">duration_days</text>
-        <text class="note" x="506" y="200">calculated</text>
         <text class="code" x="396" y="220">priority · severity</text>
         <text class="code" x="396" y="240">is_excluded · exclude_reason</text>
         <text class="code" x="396" y="260">primary_category</text>
@@ -302,30 +369,30 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
         <text class="code" x="396" y="340">automation_logic</text>
         <text class="code" x="396" y="360">agent_archetype</text>
         <text class="code" x="396" y="380">evidence_basis</text>
-        <text class="note" x="396" y="400">+ 12 more columns</text>
+        <text class="note" x="396" y="400">+ 15 more columns</text>
 
         <rect class="box" x="720" y="278" width="296" height="76" rx="8"/>
         <text class="code-strong" x="736" y="304">ref_knowledge_deflection_anchors</text>
         <text class="code" x="736" y="326">score 1–5</text>
         <text class="note" x="736" y="344">5 rows</text>
 
-        <line class="dash" x1="24" y1="440" x2="64" y2="440"/>
-        <text class="label" x="74" y="444">same values, not enforced</text>
+        <line class="fkline" x1="24" y1="440" x2="64" y2="440"/>
+        <text class="label" x="74" y="444">enforced link (foreign key)</text>
       </svg>
     </div>
-    <figcaption>The database enforces no links between these tables: category, score, archetype and evidence values match the <code>ref_</code> tables by value. The REVIEW SCHEMA's notes appear as column comments on <code>jira_requests</code> in pgAdmin.</figcaption>
+    <figcaption>The database enforces these links and the allowed values, so a ticket with an unknown category, score, agent type or evidence value can't be stored. <code>agent_archetype</code> "none" is stored as empty, because it isn't one of the five archetypes. The REVIEW SCHEMA's notes appear as column comments on <code>jira_requests</code> in pgAdmin.</figcaption>
   </figure>
 </section>
 
 <section id="columns" aria-labelledby="columns-title">
-  <h2 id="columns-title">All columns</h2>
-  <p class="intro">Every table with its columns. <span class="tag pk">PK</span> is the primary key, <span class="tag fk">FK</span> a foreign key, and <span class="tag req">required</span> means the column is never empty.</p>
+  <h2 id="columns-title">Core columns</h2>
+  <p class="intro">The core tables with their columns. <span class="tag pk">PK</span> is the primary key, <span class="tag fk">FK</span> a foreign key the database enforces, and <span class="tag req">required</span> means the column is never empty.</p>
 
   <div class="cards">
 
     <article class="card wide">
       <div class="card-head"><h3>jira_requests</h3><span class="count">5,344 rows</span></div>
-      <p>One row per Jira ticket from the scored workbook, including the AI review. The AI review columns follow the REVIEW SCHEMA, and its notes are their column comments.</p>
+      <p>One row per valid Jira ticket from the scored workbook, including the AI review. The AI review columns follow the REVIEW SCHEMA, and its notes are their column comments.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
@@ -341,33 +408,36 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
             <tr><td class="col"><code>status</code><span class="tag req">required</span></td><td class="type">text</td><td>Done, Open, In Progress, Cancel and so on.</td></tr>
             <tr><td class="col"><code>created</code><span class="tag req">required</span></td><td class="type">timestamptz</td><td>When the ticket was created, in UTC.</td></tr>
             <tr><td class="col"><code>reporter</code></td><td class="type">text</td><td>Who raised the ticket.</td></tr>
-            <tr><td class="col"><code>synced_to_jira</code><span class="tag req">required</span></td><td class="type">boolean</td><td>True when "Sync to Jira" says Synced.</td></tr>
+            <tr><td class="col"><code>synced_to_jira</code></td><td class="type">boolean</td><td>True when "Sync to Jira" says Synced, false when it's blank.</td></tr>
             <tr><td class="col"><code>resolved</code></td><td class="type">timestamptz</td><td>When the ticket was resolved, in UTC. Empty while it is open.</td></tr>
-            <tr><td class="col"><code>duration_days</code><span class="tag calc">calculated</span></td><td class="type">numeric(8,2)</td><td>Days from created to resolved. The database works this out.</td></tr>
+            <tr><td class="col"><code>duration_days</code></td><td class="type">numeric(14,4)</td><td>Days from created to resolved. Taken from the workbook when valid, otherwise calculated; empty while the ticket is open. Never negative.</td></tr>
             <tr><td class="col"><code>linked_issues</code></td><td class="type">text</td><td>The linked keys as written in Jira, separated by semicolons. Most point to REVAPPS tickets, which are not in this data.</td></tr>
             <tr><td class="col"><code>comment_summary</code></td><td class="type">text</td><td>Empty: the export had no comment summaries.</td></tr>
             <tr><td class="col"><code>priority</code></td><td class="type">text</td><td>P0 to P4, or Unprioritized.</td></tr>
             <tr><td class="col"><code>severity</code></td><td class="type">text</td><td>S1-Critical to S4-Low. Mostly empty.</td></tr>
             <tr class="group"><th colspan="3" scope="colgroup">AI review</th></tr>
-            <tr><td class="col"><code>is_excluded</code><span class="tag req">required</span></td><td class="type">boolean</td><td>Test entries, spam and duplicates. Excluded tickets have no scores.</td></tr>
-            <tr><td class="col"><code>exclude_reason</code></td><td class="type">text</td><td>Why the ticket was excluded.</td></tr>
-            <tr><td class="col"><code>primary_category</code></td><td class="type">text</td><td>The main category. The names are in <code>ref_categories</code>.</td></tr>
-            <tr><td class="col"><code>secondary_category</code></td><td class="type">text</td><td>A second category, only when a ticket genuinely spans two.</td></tr>
+            <tr><td class="col"><code>is_excluded</code><span class="tag req">required</span></td><td class="type">boolean</td><td>Test entries, spam and duplicates. Excluded tickets have no scores and are left out of AI-opportunity reporting.</td></tr>
+            <tr><td class="col"><code>exclude_reason</code></td><td class="type">text</td><td>Why the ticket was excluded. Empty for tickets that aren't excluded.</td></tr>
+            <tr><td class="col"><code>primary_category</code><span class="tag fk">FK</span></td><td class="type">text</td><td>The main category, from <code>ref_categories</code>. Required unless the ticket is excluded.</td></tr>
+            <tr><td class="col"><code>secondary_category</code><span class="tag fk">FK</span></td><td class="type">text</td><td>A second category, only when a ticket genuinely spans two.</td></tr>
             <tr><td class="col"><code>sub_type</code></td><td class="type">text</td><td>A finer type within the category, such as grant, change or revoke.</td></tr>
             <tr><td class="col"><code>is_batch</code></td><td class="type">boolean</td><td>Whether it affects many records. A merge counts as one.</td></tr>
             <tr><td class="col"><code>is_project_work</code></td><td class="type">boolean</td><td>Whether it came from UAT, functional or data testing.</td></tr>
-            <tr><td class="col"><code>clarity</code></td><td class="type">smallint 1–5</td><td>How well the request was described. The meaning of each score is in <code>ref_score_anchors</code>.</td></tr>
-            <tr><td class="col"><code>complexity</code></td><td class="type">smallint 1–5</td><td>Effort to resolve, relative to the other tickets.</td></tr>
-            <tr><td class="col"><code>knowledge_deflection</code></td><td class="type">smallint 1–5</td><td>Whether the requester wanted an answer they could have found themselves. The meaning of each score is in <code>ref_knowledge_deflection_anchors</code>.</td></tr>
-            <tr><td class="col"><code>automation_logic</code></td><td class="type">smallint 1–5</td><td>How rule-based the work is, ignoring permissions.</td></tr>
-            <tr><td class="col"><code>action_class</code></td><td class="type">text</td><td>What the resolver had to do: read-only, standard write, privileged write or config change.</td></tr>
-            <tr><td class="col"><code>approval_required</code></td><td class="type">text</td><td>The approval needed to automate it: none, manager or segregation-of-duties.</td></tr>
-            <tr><td class="col"><code>agent_archetype</code></td><td class="type">text</td><td>The best-fit AI agent, or none. The names are in <code>ref_agent_archetypes</code>.</td></tr>
-            <tr><td class="col"><code>confidence</code></td><td class="type">text</td><td>Confidence in the review: low, medium or high.</td></tr>
+            <tr><td class="col"><code>clarity</code><span class="tag fk">FK</span></td><td class="type">smallint 1–5</td><td>How well the request was described. The meaning of each score is in <code>ref_score_anchors</code>.</td></tr>
+            <tr><td class="col"><code>complexity</code><span class="tag fk">FK</span></td><td class="type">smallint 1–5</td><td>Effort to resolve, relative to the other tickets.</td></tr>
+            <tr><td class="col"><code>knowledge_deflection</code><span class="tag fk">FK</span></td><td class="type">smallint 1–5</td><td>Whether the requester wanted an answer they could have found themselves. The meaning of each score is in <code>ref_knowledge_deflection_anchors</code>.</td></tr>
+            <tr><td class="col"><code>automation_logic</code><span class="tag fk">FK</span></td><td class="type">smallint 1–5</td><td>How rule-based the work is, ignoring permissions.</td></tr>
+            <tr><td class="col"><code>action_class</code></td><td class="type">text</td><td>What the resolver had to do. Only read-only, standard write, privileged write or config change are allowed.</td></tr>
+            <tr><td class="col"><code>approval_required</code></td><td class="type">text</td><td>The approval needed to automate it. Only none, manager or segregation-of-duties are allowed.</td></tr>
+            <tr><td class="col"><code>agent_archetype</code><span class="tag fk">FK</span></td><td class="type">text</td><td>The best-fit AI agent, from <code>ref_agent_archetypes</code>. Empty when the review said "none".</td></tr>
+            <tr><td class="col"><code>confidence</code></td><td class="type">text</td><td>Confidence in the review. Only low, medium or high are allowed.</td></tr>
             <tr><td class="col"><code>rationale</code></td><td class="type">text</td><td>A short explanation of the review.</td></tr>
-            <tr><td class="col"><code>data_domain</code></td><td class="type">text</td><td>What the request touches, such as permissions or a customer record.</td></tr>
-            <tr><td class="col"><code>reversibility</code></td><td class="type">text</td><td>Whether the action could be undone: easy, hard or irreversible.</td></tr>
-            <tr><td class="col"><code>evidence_basis</code></td><td class="type">text</td><td>What the scores were based on. The values are in <code>ref_evidence_basis</code>.</td></tr>
+            <tr><td class="col"><code>data_domain</code></td><td class="type">text</td><td>What the request touches. Only permissions, customer record, billing record, configuration, reporting object or none are allowed.</td></tr>
+            <tr><td class="col"><code>reversibility</code></td><td class="type">text</td><td>Whether the action could be undone. Only easy, hard or irreversible are allowed.</td></tr>
+            <tr><td class="col"><code>evidence_basis</code><span class="tag fk">FK</span></td><td class="type">text</td><td>What the scores were based on, from <code>ref_evidence_basis</code>.</td></tr>
+            <tr class="group"><th colspan="3" scope="colgroup">Load tracking</th></tr>
+            <tr><td class="col"><code>loaded_batch_id</code><span class="tag req">required</span></td><td class="type">uuid</td><td>The load that last wrote this ticket.</td></tr>
+            <tr><td class="col"><code>loaded_at</code><span class="tag req">required</span></td><td class="type">timestamptz</td><td>When that load ran.</td></tr>
           </tbody>
         </table>
       </div>
@@ -380,7 +450,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
         <table>
           <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
           <tbody>
-            <tr><td class="col"><code>category_no</code><span class="tag pk">PK</span></td><td class="type">smallint</td><td>1 to 9.</td></tr>
+            <tr><td class="col"><code>category_no</code><span class="tag pk">PK</span></td><td class="type">integer</td><td>1 to 9.</td></tr>
             <tr><td class="col"><code>category</code><span class="tag req">required</span></td><td class="type">text</td><td>The name used in <code>jira_requests</code>. Unique.</td></tr>
             <tr><td class="col"><code>detail</code></td><td class="type">text</td><td>What belongs in the category.</td></tr>
           </tbody>
@@ -410,7 +480,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
         <table>
           <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
           <tbody>
-            <tr><td class="col"><code>archetype_no</code><span class="tag pk">PK</span></td><td class="type">smallint</td><td>1 to 5.</td></tr>
+            <tr><td class="col"><code>archetype_no</code><span class="tag pk">PK</span></td><td class="type">integer</td><td>1 to 5.</td></tr>
             <tr><td class="col"><code>archetype</code><span class="tag req">required</span></td><td class="type">text</td><td>The name used in <code>jira_requests</code>. Unique.</td></tr>
             <tr><td class="col"><code>handles</code></td><td class="type">text</td><td>The tickets it takes.</td></tr>
             <tr><td class="col"><code>autonomy</code></td><td class="type">text</td><td>How much it may do on its own.</td></tr>
@@ -451,16 +521,150 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
   </div>
 </section>
 
+<section id="other" aria-labelledby="other-title">
+  <h2 id="other-title">Other layers</h2>
+  <p class="intro">The raw, staging, dimension and fact tables, and the two views. Row counts are for one load of the current workbook.</p>
+
+  <div class="cards">
+
+    <article class="card">
+      <div class="card-head"><h3>load_jira_requests_raw</h3><span class="count">5,344 rows per load</span></div>
+      <p>1 · Raw. Every row of the "Jira Requests" sheet exactly as it was, one row per workbook row.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>load_jira_requests_raw_id</code><span class="tag pk">PK</span></td><td class="type">bigint</td><td>A number for the row.</td></tr>
+            <tr><td class="col"><code>batch_id</code><span class="tag req">required</span></td><td class="type">uuid</td><td>The load it came from.</td></tr>
+            <tr><td class="col"><code>source_file_name</code><span class="tag req">required</span></td><td class="type">text</td><td>The workbook's file name.</td></tr>
+            <tr><td class="col"><code>source_sheet_name</code><span class="tag req">required</span></td><td class="type">text</td><td>Jira Requests.</td></tr>
+            <tr><td class="col"><code>source_row_number</code><span class="tag req">required</span></td><td class="type">integer</td><td>The row number in Excel.</td></tr>
+            <tr><td class="col"><code>source_payload</code><span class="tag req">required</span></td><td class="type">jsonb</td><td>Every cell of the row, keyed by column header, unchanged.</td></tr>
+            <tr><td class="col"><code>loaded_at</code><span class="tag req">required</span></td><td class="type">timestamptz</td><td>When the load ran.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>load_reference_rows_raw</h3><span class="count">28 rows per load</span></div>
+      <p>1 · Raw. Every row of TABLE A to E from the "Request Review Design" sheet, exactly as it was. TABLE E sits beside TABLE B and shares its Score column.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>load_reference_rows_raw_id</code><span class="tag pk">PK</span></td><td class="type">bigint</td><td>A number for the row.</td></tr>
+            <tr><td class="col"><code>batch_id</code><span class="tag req">required</span></td><td class="type">uuid</td><td>The load it came from.</td></tr>
+            <tr><td class="col"><code>source_label</code><span class="tag req">required</span></td><td class="type">text</td><td>TABLE A, B, C, D or E.</td></tr>
+            <tr><td class="col"><code>source_row_number</code><span class="tag req">required</span></td><td class="type">integer</td><td>The row number in Excel.</td></tr>
+            <tr><td class="col"><code>source_payload</code><span class="tag req">required</span></td><td class="type">jsonb</td><td>The row's cells, keyed by column header, unchanged.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>stg_jira_requests</h3><span class="count">5,344 rows per load</span></div>
+      <p>2 · Staging. Each ticket converted and checked. It has the same columns as <code>jira_requests</code>, without the load-tracking columns, plus these.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>batch_id</code><span class="tag pk">PK</span></td><td class="type">uuid</td><td>The load.</td></tr>
+            <tr><td class="col"><code>source_row_number</code><span class="tag pk">PK</span></td><td class="type">integer</td><td>The row number in Excel.</td></tr>
+            <tr><td class="col"><code>validation_status</code><span class="tag req">required</span></td><td class="type">text</td><td>VALID rows load into the core; QUARANTINED rows don't.</td></tr>
+            <tr><td class="col"><code>validation_message</code></td><td class="type">text</td><td>Why a row was quarantined, for example "primary_category 'X' is not in ref_categories".</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>stg_ref_*</h3><span class="count">5 tables</span></div>
+      <p>2 · Staging. <code>stg_ref_categories</code>, <code>stg_ref_score_anchors</code>, <code>stg_ref_agent_archetypes</code>, <code>stg_ref_evidence_basis</code> and <code>stg_ref_knowledge_deflection_anchors</code>. Each has the same columns as its <code>ref_</code> table plus <code>batch_id</code>, and they fill the <code>ref_</code> tables in that order.</p>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>dim_*</h3><span class="count">5 tables</span></div>
+      <p>4 · Dimensions. Copies of the five <code>ref_</code> tables with a numeric key, which the fact table links to. The keys stay the same across loads.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Table</th><th scope="col">Key</th><th scope="col">Copied from</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>dim_category</code></td><td class="type">category_key</td><td><code>ref_categories</code></td></tr>
+            <tr><td class="col"><code>dim_score_anchor</code></td><td class="type">score_anchor_key</td><td><code>ref_score_anchors</code></td></tr>
+            <tr><td class="col"><code>dim_agent_archetype</code></td><td class="type">agent_archetype_key</td><td><code>ref_agent_archetypes</code></td></tr>
+            <tr><td class="col"><code>dim_evidence_basis</code></td><td class="type">evidence_basis_key</td><td><code>ref_evidence_basis</code></td></tr>
+            <tr><td class="col"><code>dim_knowledge_deflection_anchor</code></td><td class="type">knowledge_deflection_anchor_key</td><td><code>ref_knowledge_deflection_anchors</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>fact_jira_request</h3><span class="count">5,344 rows</span></div>
+      <p>5 · Fact. One row per ticket in <code>jira_requests</code>, including excluded ones, linked to the dimensions.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>jira_request_fact_key</code><span class="tag pk">PK</span></td><td class="type">bigint</td><td>A number for the row.</td></tr>
+            <tr><td class="col"><code>jira_key</code><span class="tag fk">FK</span></td><td class="type">text</td><td>The ticket in <code>jira_requests</code>. Unique.</td></tr>
+            <tr><td class="col"><code>*_key</code><span class="tag fk">FK</span></td><td class="type">bigint</td><td>Eight links to the dimensions: primary and secondary category, the clarity, complexity and automation scores, knowledge deflection, agent type and evidence basis.</td></tr>
+            <tr><td class="col"><code>created_at</code> · <code>resolved_at</code></td><td class="type">timestamptz</td><td>When the ticket was created and resolved.</td></tr>
+            <tr><td class="col"><code>duration_days</code></td><td class="type">numeric(14,4)</td><td>Days from created to resolved.</td></tr>
+            <tr><td class="col"><code>is_excluded</code> · <code>is_batch</code> · <code>is_project_work</code></td><td class="type">boolean</td><td>The same flags as in <code>jira_requests</code>.</td></tr>
+            <tr><td class="col"><code>request_count</code></td><td class="type">integer</td><td>Always 1, for counting.</td></tr>
+            <tr><td class="col"><code>*_score</code></td><td class="type">smallint 1–5</td><td>The automation, complexity, clarity and knowledge-deflection scores.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>vw_ai_opportunity</h3><span class="count">view · 5,243 rows</span></div>
+      <p>6 · Views. One row per ticket that isn't excluded, with its category, agent type, review values and scores, and where AI can help.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col"><code>autonomy_opportunity</code></th><th scope="col">When</th><th scope="col">Tickets</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>autonomous</code></td><td>Automation score 4–5, no approval needed and easy to undo</td><td class="type">245</td></tr>
+            <tr><td class="col"><code>execute_with_approval</code></td><td>Other tickets with an automation score of 4–5</td><td class="type">1,990</td></tr>
+            <tr><td class="col"><code>assist_only</code></td><td>Automation score 3</td><td class="type">1,361</td></tr>
+            <tr><td class="col"><code>human_led</code></td><td>Automation score 1–2</td><td class="type">1,647</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="card-head"><h3>vw_existing_data_validation_report</h3><span class="count">view</span></div>
+      <p>6 · Views. One row per load and validation status, from <code>stg_jira_requests</code>. The loader also prints a full validation report during each load.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">What it holds</th></tr></thead>
+          <tbody>
+            <tr><td class="col"><code>batch_id</code></td><td class="type">uuid</td><td>The load.</td></tr>
+            <tr><td class="col"><code>validation_status</code></td><td class="type">text</td><td>VALID or QUARANTINED.</td></tr>
+            <tr><td class="col"><code>row_count</code></td><td class="type">bigint</td><td>How many rows had that status.</td></tr>
+            <tr><td class="col"><code>validation_messages</code></td><td class="type">text</td><td>The distinct reasons, separated by " | ".</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+  </div>
+</section>
+
 <section id="improve" aria-labelledby="improve-title">
   <h2 id="improve-title">How the tables could be improved</h2>
   <ul class="intro">
-    <li>Check that every category, agent and evidence value in a ticket exists in TABLE A, C or D.</li>
-    <li>Only accept the values the review schema allows, such as low, medium or high for confidence.</li>
     <li>Add a list of allowed sub-types to the sheet, so those can be checked too.</li>
+    <li>Save the workbook's "Duration (Days)" values. The column only holds formulas without results, so every duration is calculated instead.</li>
   </ul>
 </section>
 
-<footer>Tables, columns and row counts read from the running database on 26 September 2026.</footer>
+<footer>Tables, columns and row counts read from the running database on 28 September 2026.</footer>
 
 </main>
 </body>
